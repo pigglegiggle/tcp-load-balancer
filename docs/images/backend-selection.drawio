@@ -1,0 +1,100 @@
+<?xml version='1.0' encoding='utf-8'?>
+<mxfile host="app.diagrams.net">
+  <diagram name="Backend selection — indexed heap and health" id="backend-selection">
+    <mxGraphModel page="1" pageWidth="1200" pageHeight="570">
+      <root>
+        <mxCell id="0" />
+        <mxCell id="1" parent="0" />
+        <mxCell id="2" value="Backend selection — indexed heap and health" style="text;html=0;align=center;verticalAlign=top;fontSize=24;fontFamily=Arial;" vertex="1" parent="1">
+          <mxGeometry x="350.0" y="4" width="500" height="29" as="geometry" />
+        </mxCell>
+        <mxCell id="3" value="" style="rounded=0;whiteSpace=wrap;html=0;fillColor=#FFFFFF;strokeColor=#222222;fontColor=#111111;fontFamily=Arial;fontSize=17;dashed=1;" vertex="1" parent="1">
+          <mxGeometry x="30" y="70" width="550" height="400" as="geometry" />
+        </mxCell>
+        <mxCell id="4" value="" style="rounded=0;whiteSpace=wrap;html=0;fillColor=#FFFFFF;strokeColor=#222222;fontColor=#111111;fontFamily=Arial;fontSize=17;dashed=1;" vertex="1" parent="1">
+          <mxGeometry x="620" y="70" width="550" height="400" as="geometry" />
+        </mxCell>
+        <mxCell id="5" value="Least-connections index (example)" style="text;html=0;align=center;verticalAlign=top;fontSize=19;fontFamily=Arial;" vertex="1" parent="1">
+          <mxGeometry x="55" y="81" width="500" height="24" as="geometry" />
+        </mxCell>
+        <mxCell id="6" value="B: 1 active" style="rounded=0;whiteSpace=wrap;html=0;fillColor=#FFFFFF;strokeColor=#222222;fontColor=#111111;fontFamily=Arial;fontSize=17;" vertex="1" parent="1">
+          <mxGeometry x="215" y="135" width="180" height="60" as="geometry" />
+        </mxCell>
+        <mxCell id="7" value="A: 2 active" style="rounded=0;whiteSpace=wrap;html=0;fillColor=#FFFFFF;strokeColor=#222222;fontColor=#111111;fontFamily=Arial;fontSize=17;" vertex="1" parent="1">
+          <mxGeometry x="65" y="250" width="180" height="60" as="geometry" />
+        </mxCell>
+        <mxCell id="8" value="C: 3 active" style="rounded=0;whiteSpace=wrap;html=0;fillColor=#FFFFFF;strokeColor=#222222;fontColor=#111111;fontFamily=Arial;fontSize=17;" vertex="1" parent="1">
+          <mxGeometry x="365" y="250" width="180" height="60" as="geometry" />
+        </mxCell>
+        <mxCell id="9" style="edgeStyle=none;html=0;endArrow=block;endFill=1;strokeColor=#222222;" edge="1" parent="1">
+          <mxGeometry relative="1" as="geometry">
+            <mxPoint x="265" y="195" as="sourcePoint" />
+            <mxPoint x="155" y="250" as="targetPoint" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="10" style="edgeStyle=none;html=0;endArrow=block;endFill=1;strokeColor=#222222;" edge="1" parent="1">
+          <mxGeometry relative="1" as="geometry">
+            <mxPoint x="345" y="195" as="sourcePoint" />
+            <mxPoint x="455" y="250" as="targetPoint" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="11" value="Dense ID → heap-position vector" style="rounded=0;whiteSpace=wrap;html=0;fillColor=#FFFFFF;strokeColor=#222222;fontColor=#111111;fontFamily=Arial;fontSize=17;" vertex="1" parent="1">
+          <mxGeometry x="100" y="345" width="410" height="50" as="geometry" />
+        </mxCell>
+        <mxCell id="12" value="Acquire / release: O(log B)" style="text;html=0;align=center;verticalAlign=top;fontSize=18;fontFamily=Arial;" vertex="1" parent="1">
+          <mxGeometry x="55" y="410" width="500" height="23" as="geometry" />
+        </mxCell>
+        <mxCell id="13" value="Equal load: least recently selected first" style="text;html=0;align=center;verticalAlign=top;fontSize=15;fontFamily=Arial;" vertex="1" parent="1">
+          <mxGeometry x="55" y="438" width="500" height="20" as="geometry" />
+        </mxCell>
+        <mxCell id="14" value="TCP probe eligibility" style="text;html=0;align=center;verticalAlign=top;fontSize=19;fontFamily=Arial;" vertex="1" parent="1">
+          <mxGeometry x="645" y="81" width="500" height="24" as="geometry" />
+        </mxCell>
+        <mxCell id="15" value="Unhealthy" style="rounded=0;whiteSpace=wrap;html=0;fillColor=#FFFFFF;strokeColor=#222222;fontColor=#111111;fontFamily=Arial;fontSize=17;" vertex="1" parent="1">
+          <mxGeometry x="650" y="205" width="180" height="75" as="geometry" />
+        </mxCell>
+        <mxCell id="16" value="Healthy" style="rounded=0;whiteSpace=wrap;html=0;fillColor=#FFFFFF;strokeColor=#222222;fontColor=#111111;fontFamily=Arial;fontSize=17;" vertex="1" parent="1">
+          <mxGeometry x="960" y="205" width="180" height="75" as="geometry" />
+        </mxCell>
+        <mxCell id="17" style="edgeStyle=none;html=0;endArrow=block;endFill=1;strokeColor=#222222;" edge="1" parent="1">
+          <mxGeometry relative="1" as="geometry">
+            <mxPoint x="740" y="205" as="sourcePoint" />
+            <mxPoint x="1050" y="205" as="targetPoint" />
+            <Array as="points">
+              <mxPoint x="740" y="145" />
+              <mxPoint x="1050" y="145" />
+            </Array>
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="18" value="rise consecutive successful probes" style="text;html=0;align=center;verticalAlign=top;fontSize=15;fontFamily=Arial;" vertex="1" parent="1">
+          <mxGeometry x="645" y="117" width="500" height="20" as="geometry" />
+        </mxCell>
+        <mxCell id="19" style="edgeStyle=none;html=0;endArrow=block;endFill=1;strokeColor=#222222;" edge="1" parent="1">
+          <mxGeometry relative="1" as="geometry">
+            <mxPoint x="1050" y="280" as="sourcePoint" />
+            <mxPoint x="740" y="280" as="targetPoint" />
+            <Array as="points">
+              <mxPoint x="1050" y="330" />
+              <mxPoint x="740" y="330" />
+            </Array>
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="20" value="fall consecutive failed probes" style="text;html=0;align=center;verticalAlign=top;fontSize=15;fontFamily=Arial;" vertex="1" parent="1">
+          <mxGeometry x="645" y="340" width="500" height="20" as="geometry" />
+        </mxCell>
+        <mxCell id="21" value="Passive connect failure: immediate exclusion" style="text;html=0;align=center;verticalAlign=top;fontSize=15;fontFamily=Arial;" vertex="1" parent="1">
+          <mxGeometry x="645" y="398" width="500" height="20" as="geometry" />
+        </mxCell>
+        <mxCell id="22" value="Startup: ineligible until rise threshold passes" style="text;html=0;align=center;verticalAlign=top;fontSize=15;fontFamily=Arial;" vertex="1" parent="1">
+          <mxGeometry x="645" y="428" width="500" height="20" as="geometry" />
+        </mxCell>
+        <mxCell id="23" value="Select only healthy backends. Existing streams keep their assigned backend." style="text;html=0;align=center;verticalAlign=top;fontSize=18;fontFamily=Arial;" vertex="1" parent="1">
+          <mxGeometry x="350" y="492" width="500" height="23" as="geometry" />
+        </mxCell>
+        <mxCell id="24" value="Health means TCP reachability, not application correctness." style="text;html=0;align=center;verticalAlign=top;fontSize=17;fontFamily=Arial;" vertex="1" parent="1">
+          <mxGeometry x="350" y="528" width="500" height="22" as="geometry" />
+        </mxCell>
+      </root>
+    </mxGraphModel>
+  </diagram>
+</mxfile>

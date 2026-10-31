@@ -1,0 +1,130 @@
+<?xml version='1.0' encoding='utf-8'?>
+<mxfile host="app.diagrams.net">
+  <diagram name="TCP Load Balancer — system architecture" id="system-architecture">
+    <mxGraphModel page="1" pageWidth="1240" pageHeight="520">
+      <root>
+        <mxCell id="0" />
+        <mxCell id="1" parent="0" />
+        <mxCell id="2" value="TCP Load Balancer — system architecture" style="text;html=0;align=center;verticalAlign=top;fontSize=24;fontFamily=Arial;" vertex="1" parent="1">
+          <mxGeometry x="370.0" y="4" width="500" height="29" as="geometry" />
+        </mxCell>
+        <mxCell id="3" value="" style="rounded=0;whiteSpace=wrap;html=0;fillColor=#FFFFFF;strokeColor=#222222;fontColor=#111111;fontFamily=Arial;fontSize=17;dashed=1;" vertex="1" parent="1">
+          <mxGeometry x="260" y="50" width="690" height="410" as="geometry" />
+        </mxCell>
+        <mxCell id="4" value="C++17 process · one nonblocking poll reactor" style="text;html=0;align=center;verticalAlign=top;fontSize=16;fontFamily=Arial;" vertex="1" parent="1">
+          <mxGeometry x="350" y="60" width="500" height="21" as="geometry" />
+        </mxCell>
+        <mxCell id="5" value="Public listener" style="rounded=0;whiteSpace=wrap;html=0;fillColor=#FFFFFF;strokeColor=#222222;fontColor=#111111;fontFamily=Arial;fontSize=17;" vertex="1" parent="1">
+          <mxGeometry x="300" y="100" width="200" height="65" as="geometry" />
+        </mxCell>
+        <mxCell id="6" value="Healthy backend selector&#10;Least connections / Round robin" style="rounded=0;whiteSpace=wrap;html=0;fillColor=#FFFFFF;strokeColor=#222222;fontColor=#111111;fontFamily=Arial;fontSize=15;" vertex="1" parent="1">
+          <mxGeometry x="650" y="100" width="260" height="65" as="geometry" />
+        </mxCell>
+        <mxCell id="7" value="TCP clients" style="rounded=0;whiteSpace=wrap;html=0;fillColor=#FFFFFF;strokeColor=#222222;fontColor=#111111;fontFamily=Arial;fontSize=17;" vertex="1" parent="1">
+          <mxGeometry x="40" y="225" width="160" height="80" as="geometry" />
+        </mxCell>
+        <mxCell id="8" value="Per-connection tunnel&#10;Client + upstream sockets" style="rounded=0;whiteSpace=wrap;html=0;fillColor=#FFFFFF;strokeColor=#222222;fontColor=#111111;fontFamily=Arial;fontSize=17;" vertex="1" parent="1">
+          <mxGeometry x="480" y="225" width="240" height="80" as="geometry" />
+        </mxCell>
+        <mxCell id="9" value="Backend pool&#10;A / B / ..." style="rounded=0;whiteSpace=wrap;html=0;fillColor=#FFFFFF;strokeColor=#222222;fontColor=#111111;fontFamily=Arial;fontSize=17;" vertex="1" parent="1">
+          <mxGeometry x="1020" y="225" width="180" height="80" as="geometry" />
+        </mxCell>
+        <mxCell id="10" style="edgeStyle=none;html=0;endArrow=block;endFill=1;strokeColor=#222222;startArrow=block;startFill=1;" edge="1" parent="1">
+          <mxGeometry relative="1" as="geometry">
+            <mxPoint x="200" y="265" as="sourcePoint" />
+            <mxPoint x="480" y="265" as="targetPoint" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="11" value="TCP bytes" style="text;html=0;align=center;verticalAlign=top;fontSize=15;fontFamily=Arial;" vertex="1" parent="1">
+          <mxGeometry x="90" y="235" width="500" height="20" as="geometry" />
+        </mxCell>
+        <mxCell id="12" style="edgeStyle=none;html=0;endArrow=block;endFill=1;strokeColor=#222222;startArrow=block;startFill=1;" edge="1" parent="1">
+          <mxGeometry relative="1" as="geometry">
+            <mxPoint x="720" y="265" as="sourcePoint" />
+            <mxPoint x="1020" y="265" as="targetPoint" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="13" value="One selected backend" style="text;html=0;align=center;verticalAlign=top;fontSize=15;fontFamily=Arial;" vertex="1" parent="1">
+          <mxGeometry x="620" y="235" width="500" height="20" as="geometry" />
+        </mxCell>
+        <mxCell id="14" style="edgeStyle=none;html=0;endArrow=block;endFill=1;strokeColor=#222222;dashed=1;" edge="1" parent="1">
+          <mxGeometry relative="1" as="geometry">
+            <mxPoint x="500" y="132" as="sourcePoint" />
+            <mxPoint x="650" y="132" as="targetPoint" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="15" value="accept" style="text;html=0;align=center;verticalAlign=top;fontSize=14;fontFamily=Arial;" vertex="1" parent="1">
+          <mxGeometry x="325" y="107" width="500" height="19" as="geometry" />
+        </mxCell>
+        <mxCell id="16" style="edgeStyle=none;html=0;endArrow=block;endFill=1;strokeColor=#222222;dashed=1;" edge="1" parent="1">
+          <mxGeometry relative="1" as="geometry">
+            <mxPoint x="780" y="165" as="sourcePoint" />
+            <mxPoint x="600" y="225" as="targetPoint" />
+            <Array as="points">
+              <mxPoint x="780" y="195" />
+              <mxPoint x="600" y="195" />
+            </Array>
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="17" value="Loopback admin&#10;/metrics · /ready" style="rounded=0;whiteSpace=wrap;html=0;fillColor=#FFFFFF;strokeColor=#222222;fontColor=#111111;fontFamily=Arial;fontSize=15;" vertex="1" parent="1">
+          <mxGeometry x="290" y="365" width="170" height="65" as="geometry" />
+        </mxCell>
+        <mxCell id="18" value="poll event loop" style="rounded=0;whiteSpace=wrap;html=0;fillColor=#FFFFFF;strokeColor=#222222;fontColor=#111111;fontFamily=Arial;fontSize=17;" vertex="1" parent="1">
+          <mxGeometry x="500" y="365" width="200" height="65" as="geometry" />
+        </mxCell>
+        <mxCell id="19" value="TCP health probes" style="rounded=0;whiteSpace=wrap;html=0;fillColor=#FFFFFF;strokeColor=#222222;fontColor=#111111;fontFamily=Arial;fontSize=15;" vertex="1" parent="1">
+          <mxGeometry x="750" y="365" width="170" height="65" as="geometry" />
+        </mxCell>
+        <mxCell id="20" value="Local operator" style="rounded=0;whiteSpace=wrap;html=0;fillColor=#FFFFFF;strokeColor=#222222;fontColor=#111111;fontFamily=Arial;fontSize=15;" vertex="1" parent="1">
+          <mxGeometry x="40" y="365" width="160" height="65" as="geometry" />
+        </mxCell>
+        <mxCell id="21" style="edgeStyle=none;html=0;endArrow=block;endFill=1;strokeColor=#222222;startArrow=block;startFill=1;dashed=1;" edge="1" parent="1">
+          <mxGeometry relative="1" as="geometry">
+            <mxPoint x="200" y="397" as="sourcePoint" />
+            <mxPoint x="290" y="397" as="targetPoint" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="22" style="edgeStyle=none;html=0;endArrow=block;endFill=1;strokeColor=#222222;startArrow=block;startFill=1;dashed=1;" edge="1" parent="1">
+          <mxGeometry relative="1" as="geometry">
+            <mxPoint x="460" y="397" as="sourcePoint" />
+            <mxPoint x="500" y="397" as="targetPoint" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="23" style="edgeStyle=none;html=0;endArrow=block;endFill=1;strokeColor=#222222;dashed=1;" edge="1" parent="1">
+          <mxGeometry relative="1" as="geometry">
+            <mxPoint x="600" y="365" as="sourcePoint" />
+            <mxPoint x="600" y="305" as="targetPoint" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="24" style="edgeStyle=none;html=0;endArrow=block;endFill=1;strokeColor=#222222;startArrow=block;startFill=1;dashed=1;" edge="1" parent="1">
+          <mxGeometry relative="1" as="geometry">
+            <mxPoint x="700" y="397" as="sourcePoint" />
+            <mxPoint x="750" y="397" as="targetPoint" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="25" style="edgeStyle=none;html=0;endArrow=block;endFill=1;strokeColor=#222222;dashed=1;" edge="1" parent="1">
+          <mxGeometry relative="1" as="geometry">
+            <mxPoint x="920" y="397" as="sourcePoint" />
+            <mxPoint x="1110" y="305" as="targetPoint" />
+            <Array as="points">
+              <mxPoint x="1110" y="397" />
+            </Array>
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="26" style="edgeStyle=none;html=0;endArrow=block;endFill=1;strokeColor=#222222;dashed=1;" edge="1" parent="1">
+          <mxGeometry relative="1" as="geometry">
+            <mxPoint x="835" y="365" as="sourcePoint" />
+            <mxPoint x="910" y="132" as="targetPoint" />
+            <Array as="points">
+              <mxPoint x="935" y="365" />
+              <mxPoint x="935" y="132" />
+            </Array>
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="27" value="Solid: TCP data    |    Dashed: accept, health and reactor control    |    Routing is per connection" style="text;html=0;align=center;verticalAlign=top;fontSize=16;fontFamily=Arial;" vertex="1" parent="1">
+          <mxGeometry x="370" y="474" width="500" height="21" as="geometry" />
+        </mxCell>
+      </root>
+    </mxGraphModel>
+  </diagram>
+</mxfile>
