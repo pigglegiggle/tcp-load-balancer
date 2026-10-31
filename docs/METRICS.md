@@ -29,7 +29,8 @@ All values are a single reactor snapshot. Counters reset at process start and ar
 | `buffer_capacity_per_direction` | Allocated ring capacity C; each tunnel owns two |
 | `backpressure_pauses` | Read operations that filled a ring, causing its read interest to pause |
 | `peak_connections` | Max active tunnel-map size |
-| `accept_errors` | Non-EAGAIN accept errors, including aborted incoming connects |
+| `accept_errors` | Non-EAGAIN public-listener accept errors, including aborted incoming connects |
+| `admin_accept_errors` | Non-EAGAIN admin-listener accept errors; resource errors pause admin accepts for 100 ms |
 | `socket_setup_failures` | Nonblocking/TCP option/socket creation errors in handled client/admin/probe/upstream setup paths |
 | `poll_calls` | Calls to the readiness poll, including calls interrupted by signals |
 

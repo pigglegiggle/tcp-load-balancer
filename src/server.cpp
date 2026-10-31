@@ -169,8 +169,8 @@ struct Stats {
                   idle_timeouts = 0, forced_shutdowns = 0;
     std::uint64_t client_bytes_read = 0, backend_bytes_written = 0, backend_bytes_read = 0,
                   client_bytes_written = 0;
-    std::uint64_t backpressure_pauses = 0, accept_errors = 0, socket_setup_failures = 0,
-                  poll_calls = 0;
+    std::uint64_t backpressure_pauses = 0, accept_errors = 0, admin_accept_errors = 0,
+                  socket_setup_failures = 0, poll_calls = 0;
     std::size_t peak_connections = 0, peak_tunnel_buffered = 0;
 };
 enum class Kind { Listener, AdminListener, Client, Upstream, Probe, Admin };
@@ -188,7 +188,7 @@ class Reactor {
     std::unordered_map<std::uint64_t, std::unique_ptr<Tunnel>> tunnels_;
     std::unordered_map<std::uint64_t, Admin> admins_;
     Stats stats_;
-    Millis started_ = now_ms(), drain_deadline_ = 0, accept_after_ = 0;
+    Millis started_ = now_ms(), drain_deadline_ = 0, accept_after_ = 0, admin_accept_after_ = 0;
     bool draining_ = false;
     std::uint64_t next_id_ = 1;
 
@@ -463,6 +463,7 @@ class Reactor {
           << ",\"backpressure_pauses\":" << stats_.backpressure_pauses
           << ",\"peak_connections\":" << stats_.peak_connections
           << ",\"accept_errors\":" << stats_.accept_errors
+          << ",\"admin_accept_errors\":" << stats_.admin_accept_errors
           << ",\"socket_setup_failures\":" << stats_.socket_setup_failures
           << ",\"poll_calls\":" << stats_.poll_calls << ",\"backends\":[";
         for (std::size_t i = 0; i < backends_.size(); ++i) {
@@ -485,6 +486,14 @@ class Reactor {
             if (fd < 0) {
                 if (errno == EINTR)
                     continue;
+                if (errno == ECONNABORTED) {
+                    ++stats_.admin_accept_errors;
+                    continue;
+                }
+                if (!would_block()) {
+                    ++stats_.admin_accept_errors;
+                    admin_accept_after_ = now + 100;
+                }
                 return;
             }
             Socket socket(fd);
@@ -635,7 +644,8 @@ class Reactor {
             };
             if (!draining_ && now >= accept_after_)
                 watch(listener_.get(), POLLIN, Kind::Listener);
-            watch(admin_listener_.get(), POLLIN, Kind::AdminListener);
+            if (now >= admin_accept_after_)
+                watch(admin_listener_.get(), POLLIN, Kind::AdminListener);
             for (std::size_t i = 0; i < backends_.size(); ++i)
                 if (backends_[i].probe)
                     watch(backends_[i].probe.get(), POLLOUT, Kind::Probe, i);

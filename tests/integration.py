@@ -1,6 +1,8 @@
 """Black-box tests against real proxy/backend/client processes and sockets."""
 from concurrent.futures import ThreadPoolExecutor
 import hashlib
+import http.client
+import json
 import os
 from pathlib import Path
 import socket
@@ -204,6 +206,31 @@ def test_graceful_shutdown():
     check(lb.final["forced_shutdowns"] == 1 and lb.final["active"] == 0, "bounded shutdown deadline")
 
 
+def test_admin_descriptor_exhaustion():
+    with Backend() as backend, Balancer(BINARY, [backend], fd_limit=32) as lb:
+        observers = []
+        try:
+            observer = socket.create_connection(("127.0.0.1", lb.admin_port), timeout=2)
+            observers.append(observer)
+            observer.sendall(b"GET /metrics HTTP/1.1\r\n")
+            time.sleep(.03)  # Admit this observer before consuming the remaining child descriptors.
+            for _ in range(40):
+                observers.append(socket.create_connection(("127.0.0.1", lb.admin_port), timeout=2))
+            time.sleep(.15)
+            observer.sendall(b"Host: localhost\r\n\r\n")
+            response = http.client.HTTPResponse(observer)
+            response.begin()
+            metrics = json.loads(response.read())
+            check(metrics["poll_calls"] < 200, "admin descriptor exhaustion does not busy-spin")
+            check(metrics["admin_accept_errors"] > 0, "admin accept exhaustion is observable")
+        finally:
+            for observer in observers:
+                observer.close()
+        check(wait_for(lambda: exchange(("127.0.0.1", lb.port), b"after fd pressure") == b"after fd pressure"),
+              "data plane recovers after descriptor pressure")
+        settled(lb)
+
+
 def test_admin_and_config():
     with Backend() as backend, Balancer(BINARY, [backend]) as lb:
         check(lb.request("/unknown")[0] == 404, "unknown admin route")
@@ -225,7 +252,7 @@ if __name__ == "__main__":
     for test in [test_binary_and_fragmentation, test_half_close, test_distribution, test_concurrent_clients,
                  test_health_and_retry, test_limits_and_idle, test_no_replay_after_delivery,
                  test_backpressure_and_reset, test_graceful_shutdown,
-                 test_admin_and_config]:
+                 test_admin_descriptor_exhaustion, test_admin_and_config]:
         started = time.monotonic()
         test()
         print(f"PASS {test.__name__} ({time.monotonic() - started:.2f}s)", flush=True)

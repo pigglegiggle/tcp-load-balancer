@@ -8,6 +8,7 @@ import socket
 import socketserver
 import struct
 import subprocess
+import sys
 import threading
 import time
 
@@ -112,7 +113,7 @@ class Backend:
 
 
 class Balancer:
-    def __init__(self, binary, backends, *options, ready=True):
+    def __init__(self, binary, backends, *options, ready=True, fd_limit=None):
         self.stderr = []
         self.final = None
         self.closed = False
@@ -121,6 +122,11 @@ class Balancer:
         for backend in backends:
             command.extend(["--backend", backend.address if isinstance(backend, Backend) else backend])
         command.extend(options)
+        if fd_limit is not None:
+            command = [sys.executable, "-c",
+                       "import os, resource, sys; limit = int(sys.argv[1]); "
+                       "resource.setrlimit(resource.RLIMIT_NOFILE, (limit, limit)); "
+                       "os.execv(sys.argv[2], sys.argv[2:])", str(fd_limit), *command]
         self.process = subprocess.Popen(command, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True, bufsize=1)
         self.error_thread = threading.Thread(target=self._stderr, daemon=True)
         self.error_thread.start()
