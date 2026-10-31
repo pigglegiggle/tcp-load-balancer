@@ -30,7 +30,7 @@ constexpr std::size_t none = static_cast<std::size_t>(-1);
 bool would_block() {
     return errno == EAGAIN || errno == EWOULDBLOCK;
 }
-std::system_error socket_error(const std::string &context) {
+std::system_error socket_error(const std::string& context) {
     return std::system_error(errno, std::generic_category(), context);
 }
 
@@ -42,12 +42,12 @@ class Socket {
     ~Socket() {
         reset();
     }
-    Socket(const Socket &) = delete;
-    Socket &operator=(const Socket &) = delete;
-    Socket(Socket &&other) noexcept : fd_(other.fd_) {
+    Socket(const Socket&) = delete;
+    Socket& operator=(const Socket&) = delete;
+    Socket(Socket&& other) noexcept : fd_(other.fd_) {
         other.fd_ = -1;
     }
-    Socket &operator=(Socket &&other) noexcept {
+    Socket& operator=(Socket&& other) noexcept {
         if (this != &other) {
             reset();
             fd_ = other.fd_;
@@ -71,63 +71,75 @@ class Socket {
 void prepare(int fd) {
     auto flags = ::fcntl(fd, F_GETFL, 0);
     if (flags < 0 || ::fcntl(fd, F_SETFL, flags | O_NONBLOCK) < 0 ||
-        ::fcntl(fd, F_SETFD, FD_CLOEXEC) < 0)
+        ::fcntl(fd, F_SETFD, FD_CLOEXEC) < 0) {
         throw socket_error("set nonblocking/close-on-exec");
+    }
     int enabled = 1;
-    if (::setsockopt(fd, IPPROTO_TCP, TCP_NODELAY, &enabled, sizeof(enabled)) < 0)
+    if (::setsockopt(fd, IPPROTO_TCP, TCP_NODELAY, &enabled, sizeof(enabled)) < 0) {
         throw socket_error("TCP_NODELAY");
+    }
 }
 Socket tcp_socket() {
     Socket socket(::socket(AF_INET, SOCK_STREAM, 0));
-    if (!socket)
+    if (!socket) {
         throw socket_error("socket");
+    }
     prepare(socket.get());
     return socket;
 }
-sockaddr_in address(const Endpoint &endpoint) {
+sockaddr_in address(const Endpoint& endpoint) {
     sockaddr_in result{};
     result.sin_family = AF_INET;
     result.sin_port = htons(endpoint.port);
-    if (::inet_pton(AF_INET, endpoint.host.c_str(), &result.sin_addr) != 1)
+    if (::inet_pton(AF_INET, endpoint.host.c_str(), &result.sin_addr) != 1) {
         throw std::invalid_argument("numeric IPv4 address required");
+    }
     return result;
 }
 bool local_address(in_addr target) {
-    if ((ntohl(target.s_addr) >> 24) == 127)
+    if ((ntohl(target.s_addr) >> 24) == 127) {
         return true;
-    ifaddrs *interfaces = nullptr;
-    if (::getifaddrs(&interfaces) < 0)
+    }
+    ifaddrs* interfaces = nullptr;
+    if (::getifaddrs(&interfaces) < 0) {
         throw socket_error("enumerate local IPv4 interfaces");
+    }
     std::unique_ptr<ifaddrs, decltype(&::freeifaddrs)> owned(interfaces, ::freeifaddrs);
-    for (auto *item = interfaces; item; item = item->ifa_next)
+    for (auto* item = interfaces; item; item = item->ifa_next) {
         if (item->ifa_addr && item->ifa_addr->sa_family == AF_INET &&
-            reinterpret_cast<sockaddr_in *>(item->ifa_addr)->sin_addr.s_addr == target.s_addr)
+            reinterpret_cast<sockaddr_in*>(item->ifa_addr)->sin_addr.s_addr == target.s_addr) {
             return true;
+        }
+    }
     return false;
 }
-bool targets_listener(const Endpoint &backend, const Endpoint &listener) {
-    if (!listener.port || backend.port != listener.port)
+bool targets_listener(const Endpoint& backend, const Endpoint& listener) {
+    if (!listener.port || backend.port != listener.port) {
         return false;
+    }
     auto target = address(backend).sin_addr;
     auto bound = address(listener).sin_addr;
     return target.s_addr == bound.s_addr ||
            (bound.s_addr == htonl(INADDR_ANY) && local_address(target));
 }
-std::string label(const Endpoint &e) {
+std::string label(const Endpoint& e) {
     return e.host + ":" + std::to_string(e.port);
 }
-Socket listener(Endpoint &endpoint) {
+Socket listener(Endpoint& endpoint) {
     auto socket = tcp_socket();
     int enabled = 1;
-    if (::setsockopt(socket.get(), SOL_SOCKET, SO_REUSEADDR, &enabled, sizeof(enabled)) < 0)
+    if (::setsockopt(socket.get(), SOL_SOCKET, SO_REUSEADDR, &enabled, sizeof(enabled)) < 0) {
         throw socket_error("SO_REUSEADDR");
+    }
     auto addr = address(endpoint);
-    if (::bind(socket.get(), reinterpret_cast<sockaddr *>(&addr), sizeof(addr)) < 0 ||
-        ::listen(socket.get(), 256) < 0)
+    if (::bind(socket.get(), reinterpret_cast<sockaddr*>(&addr), sizeof(addr)) < 0 ||
+        ::listen(socket.get(), 256) < 0) {
         throw socket_error("listen " + label(endpoint));
+    }
     socklen_t size = sizeof(addr);
-    if (::getsockname(socket.get(), reinterpret_cast<sockaddr *>(&addr), &size) < 0)
+    if (::getsockname(socket.get(), reinterpret_cast<sockaddr*>(&addr), &size) < 0) {
         throw socket_error("getsockname");
+    }
     endpoint.port = ntohs(addr.sin_port);
     return socket;
 }
@@ -173,7 +185,14 @@ struct Stats {
                   socket_setup_failures = 0, poll_calls = 0;
     std::size_t peak_connections = 0, peak_tunnel_buffered = 0;
 };
-enum class Kind { Listener, AdminListener, Client, Upstream, Probe, Admin };
+enum class Kind {
+    Listener,
+    AdminListener,
+    Client,
+    Upstream,
+    Probe,
+    Admin
+};
 struct Watch {
     Kind kind;
     std::uint64_t id;
@@ -193,49 +212,53 @@ class Reactor {
     std::uint64_t next_id_ = 1;
 
     void health(std::size_t id, bool healthy) {
-        if (pool_.healthy(id) == healthy)
+        if (pool_.healthy(id) == healthy) {
             return;
+        }
         pool_.health(id, healthy);
         std::cerr << "backend " << label(backends_[id].endpoint) << " " << (healthy ? "up" : "down")
                   << '\n';
     }
     void probe_result(std::size_t id, bool success, Millis now) {
-        auto &b = backends_[id];
+        auto& b = backends_[id];
         b.probe.reset();
         b.next_probe = now + config_.health_interval_ms;
         if (success) {
             ++b.probe_successes;
             b.failures = 0;
             b.successes = std::min(b.successes + 1, config_.rise);
-            if (b.successes >= config_.rise)
+            if (b.successes >= config_.rise) {
                 health(id, true);
+            }
         } else {
             ++b.probe_failures;
             b.successes = 0;
             b.failures = std::min(b.failures + 1, config_.fall);
-            if (b.failures >= config_.fall)
+            if (b.failures >= config_.fall) {
                 health(id, false);
+            }
         }
     }
     void start_probe(std::size_t id, Millis now) {
-        auto &b = backends_[id];
+        auto& b = backends_[id];
         try {
             b.probe = tcp_socket();
-        } catch (const std::system_error &) {
+        } catch (const std::system_error&) {
             ++stats_.socket_setup_failures;
             b.next_probe = now + config_.health_interval_ms;
             return;
         }
         auto addr = address(b.endpoint);
-        auto result = ::connect(b.probe.get(), reinterpret_cast<sockaddr *>(&addr), sizeof(addr));
-        if (result == 0)
+        auto result = ::connect(b.probe.get(), reinterpret_cast<sockaddr*>(&addr), sizeof(addr));
+        if (result == 0) {
             probe_result(id, true, now);
-        else if (errno == EINPROGRESS)
+        } else if (errno == EINPROGRESS) {
             b.probe_deadline = now + config_.health_timeout_ms;
-        else
+        } else {
             probe_result(id, false, now);
+        }
     }
-    void connect_failed(Tunnel &tunnel) {
+    void connect_failed(Tunnel& tunnel) {
         ++stats_.connect_failures;
         auto id = tunnel.backend;
         if (id != none) {
@@ -248,21 +271,23 @@ class Reactor {
         tunnel.upstream.reset();
         tunnel.connecting = false;
     }
-    bool route(Tunnel &tunnel, Millis now) {
+    bool route(Tunnel& tunnel, Millis now) {
         // Retry only before a backend connection succeeds. Never replay application bytes.
         for (;;) {
             auto selected = pool_.acquire(tunnel.attempted);
-            if (!selected)
+            if (!selected) {
                 return false;
+            }
             auto id = *selected;
-            if (tunnel.attempted)
+            if (tunnel.attempted) {
                 ++stats_.connect_retries;
+            }
             tunnel.attempted |= std::uint64_t{1} << id;
             tunnel.backend = id;
             ++stats_.connect_attempts;
             try {
                 tunnel.upstream = tcp_socket();
-            } catch (const std::system_error &) {
+            } catch (const std::system_error&) {
                 ++stats_.socket_setup_failures;
                 pool_.release(id);
                 tunnel.backend = none;
@@ -270,7 +295,7 @@ class Reactor {
             }
             auto addr = address(backends_[id].endpoint);
             auto result =
-                ::connect(tunnel.upstream.get(), reinterpret_cast<sockaddr *>(&addr), sizeof(addr));
+                ::connect(tunnel.upstream.get(), reinterpret_cast<sockaddr*>(&addr), sizeof(addr));
             if (result == 0) {
                 tunnel.connecting = false;
                 return true;
@@ -285,22 +310,26 @@ class Reactor {
     }
     void close_tunnel(std::uint64_t id, bool complete) {
         auto found = tunnels_.find(id);
-        if (found == tunnels_.end())
+        if (found == tunnels_.end()) {
             return;
-        if (found->second->backend != none)
+        }
+        if (found->second->backend != none) {
             pool_.release(found->second->backend);
+        }
         tunnels_.erase(found);
-        if (complete)
+        if (complete) {
             ++stats_.completed;
-        else
+        } else {
             ++stats_.failed;
+        }
     }
     void accept_clients(Millis now) {
         for (int count = 0; count < 64; ++count) {
             auto fd = ::accept(listener_.get(), nullptr, nullptr);
             if (fd < 0) {
-                if (errno == EINTR)
+                if (errno == EINTR) {
                     continue;
+                }
                 if (errno == ECONNABORTED) {
                     ++stats_.accept_errors;
                     continue;
@@ -315,7 +344,7 @@ class Reactor {
             ++stats_.accepted;
             try {
                 prepare(fd);
-            } catch (const std::system_error &) {
+            } catch (const std::system_error&) {
                 ++stats_.socket_setup_failures;
                 ++stats_.rejected;
                 continue;
@@ -335,7 +364,7 @@ class Reactor {
             stats_.peak_connections = std::max(stats_.peak_connections, tunnels_.size());
         }
     }
-    bool receive(int fd, RingBuffer &buffer, bool &eof, std::uint64_t &bytes, Millis &activity) {
+    bool receive(int fd, RingBuffer& buffer, bool& eof, std::uint64_t& bytes, Millis& activity) {
         std::size_t budget = 262144;
         while (!eof && !buffer.full() && budget) {
             auto n = ::recv(fd, buffer.write_data(), std::min(buffer.writable(), budget), 0);
@@ -344,19 +373,21 @@ class Reactor {
                 bytes += n;
                 budget -= n;
                 activity = now_ms();
-                if (buffer.full())
+                if (buffer.full()) {
                     ++stats_.backpressure_pauses;
+                }
             } else if (n == 0) {
                 eof = true;
                 break;
-            } else if (errno == EINTR)
+            } else if (errno == EINTR) {
                 continue;
-            else
+            } else {
                 return would_block();
+            }
         }
         return true;
     }
-    bool send(int fd, RingBuffer &buffer, std::uint64_t &bytes, Millis &activity) {
+    bool send(int fd, RingBuffer& buffer, std::uint64_t& bytes, Millis& activity) {
         std::size_t budget = 262144;
         while (!buffer.empty() && budget) {
             auto n = ::send(fd, buffer.read_data(), std::min(buffer.readable(), budget), 0);
@@ -365,81 +396,95 @@ class Reactor {
                 bytes += n;
                 budget -= n;
                 activity = now_ms();
-            } else if (n < 0 && errno == EINTR)
+            } else if (n < 0 && errno == EINTR) {
                 continue;
-            else if (n < 0 && would_block())
+            } else if (n < 0 && would_block()) {
                 return true;
-            else
+            } else {
                 return false;
+            }
         }
         return true;
     }
-    bool half_close(Tunnel &t) {
+    bool half_close(Tunnel& t) {
         // EOF closes one direction only, after its last buffered byte is delivered.
         if (t.client_eof && t.to_backend.empty() && !t.connecting && !t.upstream_write_closed) {
-            if (::shutdown(t.upstream.get(), SHUT_WR) < 0 && errno != ENOTCONN)
+            if (::shutdown(t.upstream.get(), SHUT_WR) < 0 && errno != ENOTCONN) {
                 return false;
+            }
             t.upstream_write_closed = true;
         }
         if (t.upstream_eof && t.to_client.empty() && !t.client_write_closed) {
-            if (::shutdown(t.client.get(), SHUT_WR) < 0 && errno != ENOTCONN)
+            if (::shutdown(t.client.get(), SHUT_WR) < 0 && errno != ENOTCONN) {
                 return false;
+            }
             t.client_write_closed = true;
         }
         return true;
     }
-    void traffic(const Watch &watch, short events, Millis now) {
+    void traffic(const Watch& watch, short events, Millis now) {
         auto found = tunnels_.find(watch.id);
-        if (found == tunnels_.end())
+        if (found == tunnels_.end()) {
             return;
-        auto &t = *found->second;
+        }
+        auto& t = *found->second;
         bool client = watch.kind == Kind::Client;
         auto fd = client ? t.client.get() : t.upstream.get();
-        if (fd != watch.fd)
+        if (fd != watch.fd) {
             return;
+        }
         if (!client && t.connecting) {
             if (!connected(fd)) {
                 connect_failed(t);
-                if (!route(t, now))
+                if (!route(t, now)) {
                     close_tunnel(watch.id, false);
+                }
                 return;
             }
             t.connecting = false;
         }
         bool okay = true;
-        if (events & POLLOUT)
+        if (events & POLLOUT) {
             okay = client ? send(fd, t.to_client, stats_.client_bytes_written, t.last_activity)
                           : send(fd, t.to_backend, stats_.backend_bytes_written, t.last_activity);
-        if (okay && (events & (POLLIN | POLLHUP)))
+        }
+        if (okay && (events & (POLLIN | POLLHUP))) {
             okay = client ? receive(fd, t.to_backend, t.client_eof, stats_.client_bytes_read,
                                     t.last_activity)
                           : receive(fd, t.to_client, t.upstream_eof, stats_.backend_bytes_read,
                                     t.last_activity);
+        }
         stats_.peak_tunnel_buffered =
             std::max(stats_.peak_tunnel_buffered, t.to_backend.size() + t.to_client.size());
-        if (events & (POLLERR | POLLNVAL))
+        if (events & (POLLERR | POLLNVAL)) {
             okay = false;
-        if (okay)
+        }
+        if (okay) {
             okay = half_close(t);
+        }
         if (!okay) {
             close_tunnel(watch.id, false);
             return;
         }
-        if (t.client_eof && t.upstream_eof && t.to_backend.empty() && t.to_client.empty())
+        if (t.client_eof && t.upstream_eof && t.to_backend.empty() && t.to_client.empty()) {
             close_tunnel(watch.id, true);
+        }
     }
     std::size_t healthy_count() const {
         std::size_t n = 0;
-        for (std::size_t i = 0; i < backends_.size(); ++i)
-            if (pool_.healthy(i))
+        for (std::size_t i = 0; i < backends_.size(); ++i) {
+            if (pool_.healthy(i)) {
                 ++n;
+            }
+        }
         return n;
     }
     std::string metrics() const {
         std::ostringstream o;
         std::size_t buffered = 0;
-        for (const auto &pair : tunnels_)
+        for (const auto& pair : tunnels_) {
             buffered += pair.second->to_backend.size() + pair.second->to_client.size();
+        }
         o << "{\"policy\":\""
           << (config_.policy == Policy::RoundRobin ? "round-robin" : "least-connections")
           << "\",\"draining\":" << (draining_ ? "true" : "false")
@@ -467,9 +512,10 @@ class Reactor {
           << ",\"socket_setup_failures\":" << stats_.socket_setup_failures
           << ",\"poll_calls\":" << stats_.poll_calls << ",\"backends\":[";
         for (std::size_t i = 0; i < backends_.size(); ++i) {
-            const auto &b = backends_[i];
-            if (i)
+            const auto& b = backends_[i];
+            if (i) {
                 o << ',';
+            }
             o << "{\"address\":\"" << label(b.endpoint)
               << "\",\"healthy\":" << (pool_.healthy(i) ? "true" : "false")
               << ",\"active\":" << pool_.active(i) << ",\"selections\":" << pool_.selections(i)
@@ -484,8 +530,9 @@ class Reactor {
         for (int count = 0; count < 16; ++count) {
             auto fd = ::accept(admin_listener_.get(), nullptr, nullptr);
             if (fd < 0) {
-                if (errno == EINTR)
+                if (errno == EINTR) {
                     continue;
+                }
                 if (errno == ECONNABORTED) {
                     ++stats_.admin_accept_errors;
                     continue;
@@ -499,16 +546,17 @@ class Reactor {
             Socket socket(fd);
             try {
                 prepare(fd);
-            } catch (const std::system_error &) {
+            } catch (const std::system_error&) {
                 ++stats_.socket_setup_failures;
                 continue;
             }
-            if (admins_.size() < 32)
+            if (admins_.size() < 32) {
                 admins_.emplace(next_id_++, Admin{std::move(socket), {}, {}, 0, now + 1000});
+            }
         }
     }
-    void respond(Admin &admin, int status, const std::string &body) {
-        const char *reason = status == 200   ? "OK"
+    void respond(Admin& admin, int status, const std::string& body) {
+        const char* reason = status == 200   ? "OK"
                              : status == 503 ? "Service Unavailable"
                              : status == 404 ? "Not Found"
                              : status == 405 ? "Method Not Allowed"
@@ -519,75 +567,86 @@ class Reactor {
             "\r\nContent-Type: application/json\r\nContent-Length: " + std::to_string(body.size()) +
             "\r\nConnection: close\r\nCache-Control: no-store\r\n\r\n" + body;
     }
-    void admin_event(const Watch &watch, short events) {
+    void admin_event(const Watch& watch, short events) {
         auto found = admins_.find(watch.id);
-        if (found == admins_.end() || found->second.socket.get() != watch.fd)
+        if (found == admins_.end() || found->second.socket.get() != watch.fd) {
             return;
-        auto &a = found->second;
+        }
+        auto& a = found->second;
         bool close = false;
         if (a.response.empty() && (events & (POLLIN | POLLHUP))) {
             char data[1024];
             auto n = ::recv(watch.fd, data, sizeof(data), 0);
             if (n > 0) {
                 a.request.append(data, n);
-                if (a.request.size() > 8192)
+                if (a.request.size() > 8192) {
                     respond(a, 431, "{\"error\":\"headers too large\"}");
-                else if (a.request.find("\r\n\r\n") != std::string::npos) {
+                } else if (a.request.find("\r\n\r\n") != std::string::npos) {
                     auto end = a.request.find("\r\n");
                     std::istringstream line(a.request.substr(0, end));
                     std::string method, path, version, extra;
                     if (!(line >> method >> path >> version) || (line >> extra) ||
-                        (version != "HTTP/1.1" && version != "HTTP/1.0"))
+                        (version != "HTTP/1.1" && version != "HTTP/1.0")) {
                         respond(a, 400, "{\"error\":\"bad request\"}");
-                    else if (method != "GET")
+                    } else if (method != "GET") {
                         respond(a, 405, "{\"error\":\"GET only\"}");
-                    else if (path == "/metrics")
+                    } else if (path == "/metrics") {
                         respond(a, 200, metrics());
-                    else if (path == "/ready" || path == "/health") {
+                    } else if (path == "/ready" || path == "/health") {
                         bool ready = !draining_ && healthy_count() > 0;
                         respond(a, ready ? 200 : 503,
                                 ready ? "{\"ready\":true}" : "{\"ready\":false}");
-                    } else
+                    } else {
                         respond(a, 404, "{\"error\":\"not found\"}");
+                    }
                 }
-            } else if (n == 0 || (n < 0 && errno != EINTR && !would_block()))
+            } else if (n == 0 || (n < 0 && errno != EINTR && !would_block())) {
                 close = true;
+            }
         }
         if (!close && !a.response.empty() && (events & POLLOUT)) {
             auto n = ::send(watch.fd, a.response.data() + a.sent, a.response.size() - a.sent, 0);
             if (n > 0) {
                 a.sent += n;
-                if (a.sent == a.response.size())
+                if (a.sent == a.response.size()) {
                     close = true;
-            } else if (n == 0 || (errno != EINTR && !would_block()))
+                }
+            } else if (n == 0 || (errno != EINTR && !would_block())) {
                 close = true;
+            }
         }
-        if (events & (POLLERR | POLLNVAL))
+        if (events & (POLLERR | POLLNVAL)) {
             close = true;
-        if (close)
+        }
+        if (close) {
             admins_.erase(found);
+        }
     }
-    void timers(Millis now, volatile std::sig_atomic_t &stop) {
+    void timers(Millis now, volatile std::sig_atomic_t& stop) {
         if (stop && !draining_) {
             draining_ = true;
             drain_deadline_ = now + config_.drain_timeout_ms;
             listener_.reset();
-            for (auto &b : backends_)
+            for (auto& b : backends_) {
                 b.probe.reset();
+            }
             std::cerr << "draining existing connections\n";
         }
-        if (!draining_)
+        if (!draining_) {
             for (std::size_t i = 0; i < backends_.size(); ++i) {
-                auto &b = backends_[i];
-                if (b.probe && now >= b.probe_deadline)
+                auto& b = backends_[i];
+                if (b.probe && now >= b.probe_deadline) {
                     probe_result(i, false, now);
-                if (!b.probe && now >= b.next_probe)
+                }
+                if (!b.probe && now >= b.next_probe) {
                     start_probe(i, now);
+                }
             }
+        }
         std::vector<std::uint64_t> expired;
-        for (auto &pair : tunnels_) {
+        for (auto& pair : tunnels_) {
             auto id = pair.first;
-            auto &t = *pair.second;
+            auto& t = *pair.second;
             if (draining_ && now >= drain_deadline_) {
                 ++stats_.forced_shutdowns;
                 expired.push_back(id);
@@ -596,17 +655,21 @@ class Reactor {
                 expired.push_back(id);
             } else if (t.connecting && now >= t.connect_deadline) {
                 connect_failed(t);
-                if (!route(t, now))
+                if (!route(t, now)) {
                     expired.push_back(id);
+                }
             }
         }
-        for (auto id : expired)
+        for (auto id : expired) {
             close_tunnel(id, false);
-        for (auto i = admins_.begin(); i != admins_.end();)
-            if (now >= i->second.deadline)
+        }
+        for (auto i = admins_.begin(); i != admins_.end();) {
+            if (now >= i->second.deadline) {
                 i = admins_.erase(i);
-            else
+            } else {
                 ++i;
+            }
+        }
     }
 
   public:
@@ -616,7 +679,7 @@ class Reactor {
         admin_listener_ = listener(config_.admin);
         // Recheck OS-assigned ports before probes or application routing can reach ourselves.
         validate(config_);
-        for (const auto &endpoint : config_.backends) {
+        for (const auto& endpoint : config_.backends) {
             Backend b;
             b.endpoint = endpoint;
             backends_.push_back(std::move(b));
@@ -626,67 +689,80 @@ class Reactor {
                   << "}\n"
                   << std::flush;
     }
-    int loop(volatile std::sig_atomic_t &stop) {
+    int loop(volatile std::sig_atomic_t& stop) {
         for (;;) {
             auto now = now_ms();
             timers(now, stop);
-            if (draining_ && tunnels_.empty())
+            if (draining_ && tunnels_.empty()) {
                 break;
+            }
             now = now_ms();
             Millis timeout = 250;
             auto wake_at = [&](Millis deadline) {
                 timeout = std::min(timeout, std::max<Millis>(0, deadline - now));
             };
-            if (draining_)
+            if (draining_) {
                 wake_at(drain_deadline_);
-            else if (now < accept_after_)
+            } else if (now < accept_after_) {
                 wake_at(accept_after_);
-            if (now < admin_accept_after_)
+            }
+            if (now < admin_accept_after_) {
                 wake_at(admin_accept_after_);
+            }
             std::vector<pollfd> fds;
             std::vector<Watch> watches;
             fds.reserve(2 * tunnels_.size() + backends_.size() + admins_.size() + 2);
             watches.reserve(fds.capacity());
             auto watch = [&](int fd, short events, Kind kind, std::uint64_t id = 0) {
-                if (fd < 0 || !events)
+                if (fd < 0 || !events) {
                     return;
+                }
                 fds.push_back({fd, events, 0});
                 watches.push_back({kind, id, fd});
             };
-            if (!draining_ && now >= accept_after_)
+            if (!draining_ && now >= accept_after_) {
                 watch(listener_.get(), POLLIN, Kind::Listener);
-            if (now >= admin_accept_after_)
-                watch(admin_listener_.get(), POLLIN, Kind::AdminListener);
-            for (std::size_t i = 0; i < backends_.size(); ++i) {
-                const auto &backend = backends_[i];
-                if (backend.probe)
-                    watch(backend.probe.get(), POLLOUT, Kind::Probe, i);
-                if (!draining_)
-                    wake_at(backend.probe ? backend.probe_deadline : backend.next_probe);
             }
-            for (const auto &pair : tunnels_) {
+            if (now >= admin_accept_after_) {
+                watch(admin_listener_.get(), POLLIN, Kind::AdminListener);
+            }
+            for (std::size_t i = 0; i < backends_.size(); ++i) {
+                const auto& backend = backends_[i];
+                if (backend.probe) {
+                    watch(backend.probe.get(), POLLOUT, Kind::Probe, i);
+                }
+                if (!draining_) {
+                    wake_at(backend.probe ? backend.probe_deadline : backend.next_probe);
+                }
+            }
+            for (const auto& pair : tunnels_) {
                 auto id = pair.first;
-                const auto &t = *pair.second;
+                const auto& t = *pair.second;
                 wake_at(t.last_activity + config_.idle_timeout_ms);
-                if (t.connecting)
+                if (t.connecting) {
                     wake_at(t.connect_deadline);
+                }
                 short client = 0, upstream = 0;
-                if (!t.client_eof && !t.to_backend.full())
+                if (!t.client_eof && !t.to_backend.full()) {
                     client |= POLLIN;
-                if (!t.to_client.empty())
+                }
+                if (!t.to_client.empty()) {
                     client |= POLLOUT;
-                if (t.connecting)
+                }
+                if (t.connecting) {
                     upstream = POLLOUT;
-                else {
-                    if (!t.upstream_eof && !t.to_client.full())
+                } else {
+                    if (!t.upstream_eof && !t.to_client.full()) {
                         upstream |= POLLIN;
-                    if (!t.to_backend.empty())
+                    }
+                    if (!t.to_backend.empty()) {
                         upstream |= POLLOUT;
+                    }
                 }
                 watch(t.client.get(), client, Kind::Client, id);
                 watch(t.upstream.get(), upstream, Kind::Upstream, id);
             }
-            for (const auto &pair : admins_) {
+            for (const auto& pair : admins_) {
                 watch(pair.second.socket.get(), pair.second.response.empty() ? POLLIN : POLLOUT,
                       Kind::Admin, pair.first);
                 wake_at(pair.second.deadline);
@@ -695,27 +771,31 @@ class Reactor {
             // The cap also bounds a stop signal arriving just before poll starts.
             auto count = ::poll(fds.data(), fds.size(), static_cast<int>(timeout));
             if (count < 0) {
-                if (errno == EINTR)
+                if (errno == EINTR) {
                     continue;
+                }
                 throw socket_error("poll");
             }
             now = now_ms();
             for (std::size_t i = 0; i < fds.size(); ++i) {
                 auto events = fds[i].revents;
-                if (!events)
+                if (!events) {
                     continue;
-                const auto &w = watches[i];
+                }
+                const auto& w = watches[i];
                 switch (w.kind) {
                 case Kind::Listener:
-                    if (listener_ && !stop)
+                    if (listener_ && !stop) {
                         accept_clients(now);
+                    }
                     break;
                 case Kind::AdminListener:
                     accept_admins(now);
                     break;
                 case Kind::Probe:
-                    if (backends_[w.id].probe.get() == w.fd)
+                    if (backends_[w.id].probe.get() == w.fd) {
                         probe_result(w.id, connected(w.fd), now);
+                    }
                     break;
                 case Kind::Admin:
                     admin_event(w, events);
@@ -731,55 +811,69 @@ class Reactor {
     }
 };
 } // namespace
-Endpoint endpoint(const std::string &text, bool allow_zero) {
+Endpoint endpoint(const std::string& text, bool allow_zero) {
     auto colon = text.find(':');
-    if (colon == std::string::npos || text.find(':', colon + 1) != std::string::npos)
+    if (colon == std::string::npos || text.find(':', colon + 1) != std::string::npos) {
         throw std::invalid_argument("endpoint must be numeric IPv4:port");
+    }
     auto host = text.substr(0, colon), port = text.substr(colon + 1);
-    if (port.empty() || port.size() > 5 ||
-        !std::all_of(port.begin(), port.end(), [](char c) { return c >= '0' && c <= '9'; }))
+    if (port.empty() || port.size() > 5 || !std::all_of(port.begin(), port.end(), [](char c) {
+            return c >= '0' && c <= '9';
+        })) {
         throw std::invalid_argument("invalid port");
+    }
     auto number = std::stoul(port);
-    if (number > 65535 || (!allow_zero && !number))
+    if (number > 65535 || (!allow_zero && !number)) {
         throw std::invalid_argument("port out of range");
+    }
     Endpoint result{host, static_cast<std::uint16_t>(number)};
     address(result);
     return result;
 }
-void validate(const Config &c) {
+void validate(const Config& c) {
     address(c.listen);
     address(c.admin);
-    if ((ntohl(address(c.admin).sin_addr.s_addr) >> 24) != 127)
+    if ((ntohl(address(c.admin).sin_addr.s_addr) >> 24) != 127) {
         throw std::invalid_argument("admin must bind to IPv4 loopback");
-    if (c.backends.empty() || c.backends.size() > 64)
+    }
+    if (c.backends.empty() || c.backends.size() > 64) {
         throw std::invalid_argument("provide 1..64 backends");
+    }
     std::vector<std::string> endpoints;
-    for (const auto &b : c.backends) {
+    for (const auto& b : c.backends) {
         address(b);
-        if (!b.port)
+        if (!b.port) {
             throw std::invalid_argument("backend port cannot be zero");
-        if (address(b).sin_addr.s_addr == htonl(INADDR_ANY))
+        }
+        if (address(b).sin_addr.s_addr == htonl(INADDR_ANY)) {
             throw std::invalid_argument("backend cannot use the unspecified IPv4 address");
-        if (targets_listener(b, c.listen) || targets_listener(b, c.admin))
+        }
+        if (targets_listener(b, c.listen) || targets_listener(b, c.admin)) {
             throw std::invalid_argument("backend points to this process's public/admin listener: " +
                                         label(b));
+        }
         auto text = label(b);
-        if (std::find(endpoints.begin(), endpoints.end(), text) != endpoints.end())
+        if (std::find(endpoints.begin(), endpoints.end(), text) != endpoints.end()) {
             throw std::invalid_argument("duplicate backend");
+        }
         endpoints.push_back(text);
     }
     if (!c.max_connections || c.max_connections > 16384 || c.buffer_bytes < 1024 ||
         c.buffer_bytes > 4 * 1024 * 1024 ||
-        c.max_connections * c.buffer_bytes * 2 > 1024ULL * 1024 * 1024)
+        c.max_connections * c.buffer_bytes * 2 > 1024ULL * 1024 * 1024) {
         throw std::invalid_argument("invalid capacity or configured buffers exceed 1 GiB");
+    }
     for (auto time : {c.connect_timeout_ms, c.idle_timeout_ms, c.drain_timeout_ms,
-                      c.health_interval_ms, c.health_timeout_ms})
-        if (time < 10 || time > 3600000)
+                      c.health_interval_ms, c.health_timeout_ms}) {
+        if (time < 10 || time > 3600000) {
             throw std::invalid_argument("timeouts must be 10..3600000 milliseconds");
-    if (!c.rise || c.rise > 10 || !c.fall || c.fall > 10)
+        }
+    }
+    if (!c.rise || c.rise > 10 || !c.fall || c.fall > 10) {
         throw std::invalid_argument("health thresholds must be 1..10");
+    }
 }
-int run(const Config &config, volatile std::sig_atomic_t &stop_requested) {
+int run(const Config& config, volatile std::sig_atomic_t& stop_requested) {
     validate(config);
     Reactor reactor(config);
     return reactor.loop(stop_requested);

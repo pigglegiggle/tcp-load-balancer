@@ -12,16 +12,17 @@
 
 namespace {
 std::size_t checks = 0;
-void check(bool result, const char *message) {
+void check(bool result, const char* message) {
     ++checks;
-    if (!result)
+    if (!result) {
         throw std::runtime_error(message);
+    }
 }
 template <class F> void rejects(F f) {
     bool threw = false;
     try {
         f();
-    } catch (const std::exception &) {
+    } catch (const std::exception&) {
         threw = true;
     }
     check(threw, "expected rejection");
@@ -53,17 +54,24 @@ void buffer_test() {
             check(buffer.full() == (reference.size() == capacity), "ring full");
             check(buffer.empty() == reference.empty(), "ring empty");
         }
-        rejects([&] { buffer.produced(buffer.writable() + 1); });
-        rejects([&] { buffer.consumed(buffer.size() + 1); });
+        rejects([&] {
+            buffer.produced(buffer.writable() + 1);
+        });
+        rejects([&] {
+            buffer.consumed(buffer.size() + 1);
+        });
     }
-    rejects([] { lb::RingBuffer invalid(0); });
+    rejects([] {
+        lb::RingBuffer invalid(0);
+    });
 }
 void pool_test() {
     using namespace lb;
     BackendPool rr(3, Policy::RoundRobin);
     check(!rr.acquire(), "no optimistic healthy backends");
-    for (std::size_t i = 0; i < 3; ++i)
+    for (std::size_t i = 0; i < 3; ++i) {
         rr.health(i, true);
+    }
     for (std::size_t i = 0; i < 30; ++i) {
         auto id = rr.acquire();
         check(id && *id == i % 3, "round robin");
@@ -95,14 +103,16 @@ void pool_test() {
         } else {
             auto excluded = static_cast<std::uint64_t>(rng()) & ((std::uint64_t{1} << n) - 1);
             std::optional<std::size_t> expected;
-            for (std::size_t i = 0; i < n; ++i)
+            for (std::size_t i = 0; i < n; ++i) {
                 if (healthy[i] && !(excluded & (std::uint64_t{1} << i))) {
                     if (!expected || active[i] < active[*expected] ||
                         (active[i] == active[*expected] &&
                          (last[i] < last[*expected] ||
-                          (last[i] == last[*expected] && i < *expected))))
+                          (last[i] == last[*expected] && i < *expected)))) {
                         expected = i;
+                    }
                 }
+            }
             auto actual = heap.acquire(excluded);
             check(actual == expected, "least connections reference");
             if (expected) {
@@ -111,55 +121,81 @@ void pool_test() {
             }
         }
         check(heap.valid(), "indexed heap invariant");
-        for (std::size_t i = 0; i < n; ++i)
+        for (std::size_t i = 0; i < n; ++i) {
             check(heap.active(i) == active[i] && heap.healthy(i) == healthy[i],
                   "backend accounting");
+        }
     }
     BackendPool last_bit(64, Policy::LeastConnections);
     last_bit.health(63, true);
     check(!last_bit.acquire(std::uint64_t{1} << 63), "64th exclusion bit");
     check(last_bit.acquire() == 63, "64th selection");
-    rejects([] { BackendPool invalid(0, Policy::RoundRobin); });
-    rejects([] { BackendPool invalid(65, Policy::RoundRobin); });
+    rejects([] {
+        BackendPool invalid(0, Policy::RoundRobin);
+    });
+    rejects([] {
+        BackendPool invalid(65, Policy::RoundRobin);
+    });
     BackendPool empty(1, Policy::RoundRobin);
-    rejects([&] { empty.release(0); });
+    rejects([&] {
+        empty.release(0);
+    });
 }
 void config_test() {
     using namespace lb;
     check(endpoint("127.0.0.1:65535").port == 65535, "port parsing");
     check(endpoint("127.0.0.1:0", true).port == 0, "ephemeral port");
     for (auto value : {"localhost:80", "127.0.0.1:0", "127.0.0.1:-1", "127.0.0.1:65536", "::1:80",
-                       "127.0.0.1:+2", "127.0.0.1:12x"})
-        rejects([&] { endpoint(value); });
+                       "127.0.0.1:+2", "127.0.0.1:12x"}) {
+        rejects([&] {
+            endpoint(value);
+        });
+    }
     Config c;
     c.backends = {endpoint("127.0.0.1:1234")};
     validate(c);
     auto bad = c;
     bad.admin = endpoint("0.0.0.0:9000");
-    rejects([&] { validate(bad); });
+    rejects([&] {
+        validate(bad);
+    });
     bad = c;
     bad.backends.push_back(c.backends[0]);
-    rejects([&] { validate(bad); });
+    rejects([&] {
+        validate(bad);
+    });
     bad = c;
     bad.buffer_bytes = 0;
-    rejects([&] { validate(bad); });
+    rejects([&] {
+        validate(bad);
+    });
     bad = c;
     bad.max_connections = 16384;
     bad.buffer_bytes = 4 * 1024 * 1024;
-    rejects([&] { validate(bad); });
+    rejects([&] {
+        validate(bad);
+    });
     bad = c;
     bad.backends = {c.listen};
-    rejects([&] { validate(bad); });
+    rejects([&] {
+        validate(bad);
+    });
     bad = c;
     bad.backends = {c.admin};
-    rejects([&] { validate(bad); });
+    rejects([&] {
+        validate(bad);
+    });
     bad = c;
     bad.listen = endpoint("0.0.0.0:1234");
     bad.backends = {endpoint("127.1.2.3:1234")};
-    rejects([&] { validate(bad); });
+    rejects([&] {
+        validate(bad);
+    });
     bad = c;
     bad.backends = {endpoint("0.0.0.0:1234")};
-    rejects([&] { validate(bad); });
+    rejects([&] {
+        validate(bad);
+    });
     auto separate = c;
     separate.listen = endpoint("127.0.0.1:1234");
     separate.backends = {endpoint("127.0.0.2:1234")};
@@ -172,10 +208,10 @@ void config_test() {
     sockaddr_in bound{};
     bound.sin_family = AF_INET;
     bound.sin_addr.s_addr = htonl(INADDR_LOOPBACK);
-    check(::bind(fd, reinterpret_cast<sockaddr *>(&bound), sizeof(bound)) == 0,
+    check(::bind(fd, reinterpret_cast<sockaddr*>(&bound), sizeof(bound)) == 0,
           "bind ephemeral listener");
     socklen_t size = sizeof(bound);
-    check(::getsockname(fd, reinterpret_cast<sockaddr *>(&bound), &size) == 0,
+    check(::getsockname(fd, reinterpret_cast<sockaddr*>(&bound), &size) == 0,
           "resolve ephemeral listener");
     ::close(fd);
     auto resolved = c;
@@ -183,16 +219,24 @@ void config_test() {
     resolved.backends = {endpoint("127.0.0.1:" + std::to_string(ntohs(bound.sin_port)))};
     validate(resolved);
     resolved.listen.port = ntohs(bound.sin_port);
-    rejects([&] { validate(resolved); });
+    rejects([&] {
+        validate(resolved);
+    });
     resolved.listen.port = 0;
     resolved.admin.port = ntohs(bound.sin_port);
-    rejects([&] { validate(resolved); });
+    rejects([&] {
+        validate(resolved);
+    });
     bad = c;
     bad.rise = 0;
-    rejects([&] { validate(bad); });
+    rejects([&] {
+        validate(bad);
+    });
     bad = c;
     bad.idle_timeout_ms = 0;
-    rejects([&] { validate(bad); });
+    rejects([&] {
+        validate(bad);
+    });
 }
 } // namespace
 int main() {
@@ -201,7 +245,7 @@ int main() {
         pool_test();
         config_test();
         std::cout << checks << " checks passed; seeds 20261101/20261102\n";
-    } catch (const std::exception &e) {
+    } catch (const std::exception& e) {
         std::cerr << "FAIL after " << checks << " checks: " << e.what() << '\n';
         return 1;
     }

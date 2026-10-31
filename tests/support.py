@@ -1,4 +1,5 @@
 """Real TCP fixtures shared by integration tests, demo and benchmark (stdlib only)."""
+
 from concurrent.futures import ThreadPoolExecutor
 import http.client
 import json
@@ -23,7 +24,7 @@ def wait_for(predicate, timeout=5):
                 return result
         except (ConnectionError, OSError, http.client.HTTPException) as caught:
             error = caught
-        time.sleep(.02)
+        time.sleep(0.02)
     raise AssertionError(f"Condition did not become true: {error}")
 
 
@@ -69,7 +70,9 @@ class Backend:
                         with owner.lock:
                             owner.messages += 1
                         if owner.mode == "reset":
-                            s.setsockopt(socket.SOL_SOCKET, socket.SO_LINGER, struct.pack("ii", 1, 0))
+                            s.setsockopt(
+                                socket.SOL_SOCKET, socket.SO_LINGER, struct.pack("ii", 1, 0)
+                            )
                             s.close()
                             return
                         if owner.mode == "identity":
@@ -86,7 +89,9 @@ class Backend:
 
         self.server = Server(("127.0.0.1", port), Handler)
         self.port = self.server.server_address[1]
-        self.thread = threading.Thread(target=self.server.serve_forever, kwargs={"poll_interval": .02}, daemon=True)
+        self.thread = threading.Thread(
+            target=self.server.serve_forever, kwargs={"poll_interval": 0.02}, daemon=True
+        )
         self.thread.start()
 
     @property
@@ -117,17 +122,39 @@ class Balancer:
         self.stderr = []
         self.final = None
         self.closed = False
-        command = [str(Path(binary).resolve()), "--listen", "127.0.0.1:0", "--admin", "127.0.0.1:0",
-                   "--health-interval-ms", "50", "--health-timeout-ms", "100", "--rise", "1", "--fall", "1"]
+        command = [
+            str(Path(binary).resolve()),
+            "--listen",
+            "127.0.0.1:0",
+            "--admin",
+            "127.0.0.1:0",
+            "--health-interval-ms",
+            "50",
+            "--health-timeout-ms",
+            "100",
+            "--rise",
+            "1",
+            "--fall",
+            "1",
+        ]
         for backend in backends:
-            command.extend(["--backend", backend.address if isinstance(backend, Backend) else backend])
+            command.extend(
+                ["--backend", backend.address if isinstance(backend, Backend) else backend]
+            )
         command.extend(options)
         if fd_limit is not None:
-            command = [sys.executable, "-c",
-                       "import os, resource, sys; limit = int(sys.argv[1]); "
-                       "resource.setrlimit(resource.RLIMIT_NOFILE, (limit, limit)); "
-                       "os.execv(sys.argv[2], sys.argv[2:])", str(fd_limit), *command]
-        self.process = subprocess.Popen(command, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True, bufsize=1)
+            command = [
+                sys.executable,
+                "-c",
+                "import os, resource, sys; limit = int(sys.argv[1]); "
+                "resource.setrlimit(resource.RLIMIT_NOFILE, (limit, limit)); "
+                "os.execv(sys.argv[2], sys.argv[2:])",
+                str(fd_limit),
+                *command,
+            ]
+        self.process = subprocess.Popen(
+            command, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True, bufsize=1
+        )
         self.error_thread = threading.Thread(target=self._stderr, daemon=True)
         self.error_thread.start()
         try:
@@ -202,10 +229,12 @@ class Balancer:
 def exchange(address, payload, fragment=65536):
     """Full duplex: send concurrently, half-close, receive through EOF."""
     with socket.create_connection(address, timeout=8) as client:
+
         def send():
             for offset in range(0, len(payload), fragment):
-                client.sendall(payload[offset:offset + fragment])
+                client.sendall(payload[offset : offset + fragment])
             client.shutdown(socket.SHUT_WR)
+
         with ThreadPoolExecutor(max_workers=1) as pool:
             sender = pool.submit(send)
             chunks = []

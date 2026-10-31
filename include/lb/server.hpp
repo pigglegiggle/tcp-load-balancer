@@ -19,7 +19,7 @@ struct Config {
     std::int64_t health_interval_ms = 1000, health_timeout_ms = 500;
     unsigned rise = 2, fall = 2;
 };
-Endpoint endpoint(const std::string &text, bool allow_zero = false);
-void validate(const Config &config);
-int run(const Config &config, volatile std::sig_atomic_t &stop_requested);
+Endpoint endpoint(const std::string& text, bool allow_zero = false);
+void validate(const Config& config);
+int run(const Config& config, volatile std::sig_atomic_t& stop_requested);
 } // namespace lb

@@ -1,4 +1,5 @@
 """Two real HTTP backends behind the C++ TCP proxy; no frontend framework."""
+
 import argparse
 import http.client
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
@@ -36,7 +37,9 @@ class HTTPBackend:
 
         self.server = ThreadingHTTPServer(("127.0.0.1", port), Handler)
         self.port = self.server.server_address[1]
-        self.thread = threading.Thread(target=self.server.serve_forever, kwargs={"poll_interval": .02}, daemon=True)
+        self.thread = threading.Thread(
+            target=self.server.serve_forever, kwargs={"poll_interval": 0.02}, daemon=True
+        )
         self.thread.start()
 
     @property
@@ -80,7 +83,7 @@ def main():
         if args.serve:
             print("Refresh /hello to see A/B routing. Ctrl+C stops owned services.", flush=True)
             while lb.process.poll() is None:
-                time.sleep(.2)
+                time.sleep(0.2)
             raise RuntimeError("Proxy stopped: " + "".join(lb.stderr))
         before = [get(lb.port) for _ in range(6)]
         print("Before failure:", before)

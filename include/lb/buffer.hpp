@@ -12,8 +12,9 @@ class RingBuffer {
 
   public:
     explicit RingBuffer(std::size_t capacity) : data_(capacity) {
-        if (!capacity)
+        if (!capacity) {
             throw std::invalid_argument("buffer capacity must be positive");
+        }
     }
     std::size_t size() const {
         return size_;
@@ -27,26 +28,28 @@ class RingBuffer {
     bool full() const {
         return size_ == capacity();
     }
-    char *write_data() {
+    char* write_data() {
         return data_.data() + (head_ + size_) % capacity();
     }
     std::size_t writable() const {
         return std::min(capacity() - size_, capacity() - (head_ + size_) % capacity());
     }
-    const char *read_data() const {
+    const char* read_data() const {
         return data_.data() + head_;
     }
     std::size_t readable() const {
         return std::min(size_, capacity() - head_);
     }
     void produced(std::size_t n) {
-        if (n > writable())
+        if (n > writable()) {
             throw std::out_of_range("buffer write exceeds contiguous space");
+        }
         size_ += n;
     }
     void consumed(std::size_t n) {
-        if (n > size_)
+        if (n > size_) {
             throw std::out_of_range("buffer read exceeds size");
+        }
         head_ = (head_ + n) % capacity();
         size_ -= n;
     }

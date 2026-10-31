@@ -7,13 +7,14 @@ volatile std::sig_atomic_t stop_requested = 0;
 void stop(int) {
     stop_requested = 1;
 }
-std::uint64_t number(const std::string &value) {
+std::uint64_t number(const std::string& value) {
     if (value.empty() || value.size() > 10 ||
-        value.find_first_not_of("0123456789") != std::string::npos)
+        value.find_first_not_of("0123456789") != std::string::npos) {
         throw std::invalid_argument("expected a positive decimal integer");
+    }
     return std::stoull(value);
 }
-const char *help = R"(TCP Load Balancer — C++17, nonblocking IPv4 TCP proxy
+const char* help = R"(TCP Load Balancer — C++17, nonblocking IPv4 TCP proxy
 
 Usage:
   tcp-lb --backend 127.0.0.1:9001 --backend 127.0.0.1:9002 [options]
@@ -36,7 +37,7 @@ connections; it stops accepting new ones. Backend probes check TCP reachability,
 not application correctness. Existing streams are never replayed to a new backend.
 )";
 } // namespace
-int main(int argc, char **argv) {
+int main(int argc, char** argv) {
     try {
         lb::Config config;
         if (argc == 1) {
@@ -49,54 +50,59 @@ int main(int argc, char **argv) {
                 std::cout << help;
                 return 0;
             }
-            if (i + 1 == argc)
+            if (i + 1 == argc) {
                 throw std::invalid_argument("missing value for " + flag);
+            }
             std::string value = argv[++i];
-            if (flag == "--listen")
+            if (flag == "--listen") {
                 config.listen = lb::endpoint(value, true);
-            else if (flag == "--admin")
+            } else if (flag == "--admin") {
                 config.admin = lb::endpoint(value, true);
-            else if (flag == "--backend")
+            } else if (flag == "--backend") {
                 config.backends.push_back(lb::endpoint(value));
-            else if (flag == "--policy") {
-                if (value == "least-connections")
+            } else if (flag == "--policy") {
+                if (value == "least-connections") {
                     config.policy = lb::Policy::LeastConnections;
-                else if (value == "round-robin")
+                } else if (value == "round-robin") {
                     config.policy = lb::Policy::RoundRobin;
-                else
+                } else {
                     throw std::invalid_argument("unknown policy");
-            } else if (flag == "--max-connections")
+                }
+            } else if (flag == "--max-connections") {
                 config.max_connections = number(value);
-            else if (flag == "--buffer-bytes")
+            } else if (flag == "--buffer-bytes") {
                 config.buffer_bytes = number(value);
-            else if (flag == "--connect-timeout-ms")
+            } else if (flag == "--connect-timeout-ms") {
                 config.connect_timeout_ms = number(value);
-            else if (flag == "--idle-timeout-ms")
+            } else if (flag == "--idle-timeout-ms") {
                 config.idle_timeout_ms = number(value);
-            else if (flag == "--drain-timeout-ms")
+            } else if (flag == "--drain-timeout-ms") {
                 config.drain_timeout_ms = number(value);
-            else if (flag == "--health-interval-ms")
+            } else if (flag == "--health-interval-ms") {
                 config.health_interval_ms = number(value);
-            else if (flag == "--health-timeout-ms")
+            } else if (flag == "--health-timeout-ms") {
                 config.health_timeout_ms = number(value);
-            else if (flag == "--rise") {
+            } else if (flag == "--rise") {
                 auto n = number(value);
-                if (n > 10)
+                if (n > 10) {
                     throw std::invalid_argument("rise exceeds 10");
+                }
                 config.rise = n;
             } else if (flag == "--fall") {
                 auto n = number(value);
-                if (n > 10)
+                if (n > 10) {
                     throw std::invalid_argument("fall exceeds 10");
+                }
                 config.fall = n;
-            } else
+            } else {
                 throw std::invalid_argument("unknown option: " + flag);
+            }
         }
         std::signal(SIGPIPE, SIG_IGN);
         std::signal(SIGINT, stop);
         std::signal(SIGTERM, stop);
         return lb::run(config, stop_requested);
-    } catch (const std::exception &e) {
+    } catch (const std::exception& e) {
         std::cerr << "error: " << e.what() << '\n';
         return 1;
     }

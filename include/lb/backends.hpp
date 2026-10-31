@@ -6,7 +6,10 @@
 #include <vector>
 
 namespace lb {
-enum class Policy { RoundRobin, LeastConnections };
+enum class Policy {
+    RoundRobin,
+    LeastConnections
+};
 // Backend IDs are dense and fixed by configuration, so direct indexing beats hashing.
 class BackendPool {
     static constexpr std::size_t missing = static_cast<std::size_t>(-1);
@@ -17,10 +20,12 @@ class BackendPool {
     std::size_t cursor_ = 0;
     std::uint64_t sequence_ = 0;
     bool before(std::size_t a, std::size_t b) const {
-        if (active_[a] != active_[b])
+        if (active_[a] != active_[b]) {
             return active_[a] < active_[b];
-        if (last_selected_[a] != last_selected_[b])
+        }
+        if (last_selected_[a] != last_selected_[b]) {
             return last_selected_[a] < last_selected_[b];
+        }
         return a < b;
     }
     void exchange(std::size_t a, std::size_t b) {
@@ -39,12 +44,15 @@ class BackendPool {
     void down(std::size_t i) {
         for (;;) {
             auto child = 2 * i + 1;
-            if (child >= heap_.size())
+            if (child >= heap_.size()) {
                 break;
-            if (child + 1 < heap_.size() && before(heap_[child + 1], heap_[child]))
+            }
+            if (child + 1 < heap_.size() && before(heap_[child + 1], heap_[child])) {
                 ++child;
-            if (!before(heap_[child], heap_[i]))
+            }
+            if (!before(heap_[child], heap_[i])) {
                 break;
+            }
             exchange(i, child);
             i = child;
         }
@@ -56,21 +64,24 @@ class BackendPool {
     }
     void erase(std::size_t id) {
         auto i = positions_[id];
-        if (i == missing)
+        if (i == missing) {
             return;
+        }
         exchange(i, heap_.size() - 1);
         heap_.pop_back();
         positions_[id] = missing;
-        if (i < heap_.size())
+        if (i < heap_.size()) {
             down(up(i));
+        }
     }
 
   public:
     BackendPool(std::size_t count, Policy policy)
         : positions_(count, missing), active_(count), last_selected_(count), selections_(count),
           healthy_(count, false), policy_(policy) {
-        if (!count || count > 64)
+        if (!count || count > 64) {
             throw std::invalid_argument("backend count must be 1..64");
+        }
         heap_.reserve(count);
     }
     bool healthy(std::size_t id) const {
@@ -83,13 +94,15 @@ class BackendPool {
         return selections_.at(id);
     }
     void health(std::size_t id, bool value) {
-        if (healthy_.at(id) == value)
+        if (healthy_.at(id) == value) {
             return;
+        }
         healthy_[id] = value;
-        if (value)
+        if (value) {
             insert(id);
-        else
+        } else {
             erase(id);
+        }
     }
     std::optional<std::size_t> acquire(std::uint64_t excluded = 0) {
         std::optional<std::size_t> selected;
@@ -109,10 +122,12 @@ class BackendPool {
                 erase(id);
                 skipped.push_back(id);
             }
-            if (!heap_.empty())
+            if (!heap_.empty()) {
                 selected = heap_[0];
-            for (auto id : skipped)
+            }
+            for (auto id : skipped) {
                 insert(id);
+            }
         }
         if (selected) {
             auto id = *selected;
@@ -124,27 +139,34 @@ class BackendPool {
         return selected;
     }
     void release(std::size_t id) {
-        if (!active_.at(id))
+        if (!active_.at(id)) {
             throw std::logic_error("backend lease underflow");
+        }
         --active_[id];
-        if (positions_[id] != missing)
+        if (positions_[id] != missing) {
             down(up(positions_[id]));
+        }
     }
     bool valid() const {
         std::size_t eligible = 0;
         for (std::size_t id = 0; id < healthy_.size(); ++id) {
-            if (healthy_[id])
+            if (healthy_[id]) {
                 ++eligible;
-            if (healthy_[id] != (positions_[id] != missing))
+            }
+            if (healthy_[id] != (positions_[id] != missing)) {
                 return false;
+            }
         }
-        if (eligible != heap_.size())
+        if (eligible != heap_.size()) {
             return false;
+        }
         for (std::size_t i = 0; i < heap_.size(); ++i) {
-            if (positions_[heap_[i]] != i)
+            if (positions_[heap_[i]] != i) {
                 return false;
-            if (i && before(heap_[i], heap_[(i - 1) / 2]))
+            }
+            if (i && before(heap_[i], heap_[(i - 1) / 2])) {
                 return false;
+            }
         }
         return true;
     }
