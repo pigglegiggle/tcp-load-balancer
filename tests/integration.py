@@ -206,6 +206,21 @@ def test_graceful_shutdown():
     check(lb.final["forced_shutdowns"] == 1 and lb.final["active"] == 0, "bounded shutdown deadline")
 
 
+def test_quiet_connection_polling():
+    with Backend() as backend, Balancer(BINARY, [backend], "--health-interval-ms", "60000",
+                                       "--idle-timeout-ms", "2000") as lb:
+        with lb.connect() as client:
+            client.sendall(b"quiet")
+            check(client.recv(5) == b"quiet", "quiet tunnel established")
+            before = lb.metrics()["poll_calls"]
+            time.sleep(.3)
+            after = lb.metrics()["poll_calls"]
+            check(after - before < 10, "quiet connection avoids fixed 20 ms wakeups")
+            client.shutdown(socket.SHUT_WR)
+            check(client.recv(1) == b"", "quiet connection still completes")
+        settled(lb)
+
+
 def test_admin_descriptor_exhaustion():
     with Backend() as backend, Balancer(BINARY, [backend], fd_limit=32) as lb:
         observers = []
@@ -252,7 +267,7 @@ if __name__ == "__main__":
     for test in [test_binary_and_fragmentation, test_half_close, test_distribution, test_concurrent_clients,
                  test_health_and_retry, test_limits_and_idle, test_no_replay_after_delivery,
                  test_backpressure_and_reset, test_graceful_shutdown,
-                 test_admin_descriptor_exhaustion, test_admin_and_config]:
+                 test_quiet_connection_polling, test_admin_descriptor_exhaustion, test_admin_and_config]:
         started = time.monotonic()
         test()
         print(f"PASS {test.__name__} ({time.monotonic() - started:.2f}s)", flush=True)

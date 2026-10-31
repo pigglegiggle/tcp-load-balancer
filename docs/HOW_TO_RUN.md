@@ -63,7 +63,7 @@ Policies: `least-connections` (default), `round-robin`. Lower active traffic-con
 | `--rise`, `--fall` | 1..10 consecutive active probe outcomes |
 | Potential ring capacity | `2 × max-connections × buffer-bytes` must be ≤ 1 GiB |
 
-Timeout checks have roughly 20 ms poll granularity plus loop work. Idle time advances only on successful data reads/writes, not on health checks. The drain deadline starts after SIGINT/SIGTERM is observed. A passive client-connect failure excludes a backend immediately even if `fall` is greater than one.
+Poll sleeps until the nearest tracked timeout/backoff deadline, capped at 250 ms, plus loop work. Socket readiness and signals normally wake it earlier. Idle time advances only on successful data reads/writes, not on health checks. The drain deadline starts after SIGINT/SIGTERM is observed. A passive client-connect failure excludes a backend immediately even if `fall` is greater than one.
 
 For a larger connection count, set a suitable descriptor limit before starting:
 

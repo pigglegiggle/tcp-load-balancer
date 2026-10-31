@@ -157,7 +157,7 @@ The configuration fixes backend IDs, so a dense position vector provides determi
 - Connect failures before success can try another eligible backend. Application bytes are buffered until connection success, and **never replayed after success**, even if the backend later resets. Existing sessions are not migrated by health checks.
 - Active probes use rise/fall hysteresis. A passive client-connect failure excludes its target immediately. A successful TCP probe establishes reachability, not service correctness.
 - A client `SHUT_WR` still permits a backend response. The reverse direction also works: a backend can finish writing while continuing to read client data.
-- Idle timeout measures time since the last successful byte transfer. Connect, probe, admin-request and drain lifetimes are bounded. Timer checks use a monotonic clock with approximately 20 ms polling granularity, plus event-loop work.
+- Idle timeout measures time since the last successful byte transfer. Connect, probe, admin-request and drain lifetimes are bounded. Timer checks use a monotonic clock; poll sleeps until the nearest tracked deadline, capped at 250 ms plus event-loop work. The cap bounds the signal-check/poll race without fixed 20 ms idle wakeups.
 - SIGINT/SIGTERM closes the public listener and drains current tunnels. The configured drain deadline closes remaining tunnels; a stuck client cannot keep shutdown alive indefinitely.
 - Rapid client resets or socket-setup failures close that connection rather than terminate the reactor. Descriptor exhaustion pauses accept attempts; probe/socket setup failures are counted without automatically blaming an otherwise healthy backend.
 - Socket descriptors are RAII-owned and close-on-exec. Pending bytes have explicit owners and the signal handler only sets a `sig_atomic_t` flag. SIGPIPE is ignored by the executable; send failures are handled as connection errors.
@@ -172,7 +172,7 @@ For large connection limits, inspect `ulimit -n`: the process needs roughly two 
 
 ## Tests and measurements
 
-Validated on the development Mac: **2,190,301 unit checks and 149 integration checks**, with the same suites passing AddressSanitizer and UndefinedBehaviorSanitizer builds. Unit checks include seeded differential tests of ring operations against a deque and backend selection against an independent linear reference.
+Validated on the development Mac: **2,190,310 unit checks and 161 integration checks**, with the same suites passing AddressSanitizer and UndefinedBehaviorSanitizer builds. Unit checks include seeded differential tests of ring operations against a deque and backend selection against an independent linear reference.
 
 A measured loopback run with 32 persistent clients produced a **3.197 ms proxy p95** versus **3.082 ms direct p95** for 256-byte verified echoes. The 16-client bulk run measured **903.74 MiB/s through the proxy** versus **912.32 MiB/s direct**, counting payload once despite the echo round trip. These are end-to-end measurements with Python clients/backends on the same Mac, not production capacity or isolated proxy CPU measurements. Full configuration, raw samples and source/binary hashes are linked below.
 

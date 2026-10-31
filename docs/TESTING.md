@@ -36,3 +36,5 @@ No Linux/WSL execution has been performed on the development Mac. Packet loss, p
 The reactor uses `poll`, so linear fd scans and repeated watch-vector construction become scalability costs. No claim is made to match an epoll/kqueue production proxy. Reproducible measured end-to-end results are in [PERFORMANCE_REPORT.md](PERFORMANCE_REPORT.md).
 
 Admin descriptor-pressure coverage starts a child with a 32-fd soft/hard limit, reserves a metrics connection, fills the admin listener, then checks bounded poll activity, the accept-error counter and subsequent data-plane recovery. The limit is applied in a small exec wrapper rather than an unsafe `preexec_fn` in the threaded test process.
+
+A quiet established stream with a 60-second probe interval is observed for 300 ms; its poll counter must stay below ten additional calls. This rejects the former fixed 20 ms loop while allowing scheduling/admin-request overhead. Existing idle, health, admin-exhaustion and drain tests cover the deadlines included in adaptive polling.

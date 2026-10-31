@@ -10,7 +10,7 @@ The Python tools are clients/test services, not part of forwarding or routing. T
 
 ## Event loop
 
-Before each poll, the reactor checks timeout/probe/drain state, then constructs descriptor/watch vectors. `poll` blocks for at most 20 ms or until readiness/signal activity. One dispatch performs bounded work: up to 64 public accepts, 16 admin accepts, and 256 KiB per socket I/O direction. No production thread pool is used.
+Before each poll, the reactor checks timeout/probe/drain state, then constructs descriptor/watch vectors. `poll` waits until the nearest connect, idle, probe, admin, drain or accept-backoff deadline, or until readiness/signal activity, with a 250 ms maximum sleep. The maximum bounds shutdown responsiveness if a stop signal arrives between checking its flag and entering poll. Cancelled probes do not contribute deadlines while draining. One dispatch performs bounded work: up to 64 public accepts, 16 admin accepts, and 256 KiB per socket I/O direction. No production thread pool is used.
 
 Watch records contain kind, connection ID and fd. Before handling a tunnel/admin event, the map entry must still exist and its current fd must match. An fd number reused by a newly accepted connection does not inherit the old connection ID. Probe watches similarly check the current backend probe fd. Changing socket state affects the next iteration's interests.
 

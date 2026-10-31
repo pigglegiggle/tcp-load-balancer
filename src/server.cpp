@@ -632,6 +632,17 @@ class Reactor {
             timers(now, stop);
             if (draining_ && tunnels_.empty())
                 break;
+            now = now_ms();
+            Millis timeout = 250;
+            auto wake_at = [&](Millis deadline) {
+                timeout = std::min(timeout, std::max<Millis>(0, deadline - now));
+            };
+            if (draining_)
+                wake_at(drain_deadline_);
+            else if (now < accept_after_)
+                wake_at(accept_after_);
+            if (now < admin_accept_after_)
+                wake_at(admin_accept_after_);
             std::vector<pollfd> fds;
             std::vector<Watch> watches;
             fds.reserve(2 * tunnels_.size() + backends_.size() + admins_.size() + 2);
@@ -646,12 +657,19 @@ class Reactor {
                 watch(listener_.get(), POLLIN, Kind::Listener);
             if (now >= admin_accept_after_)
                 watch(admin_listener_.get(), POLLIN, Kind::AdminListener);
-            for (std::size_t i = 0; i < backends_.size(); ++i)
-                if (backends_[i].probe)
-                    watch(backends_[i].probe.get(), POLLOUT, Kind::Probe, i);
+            for (std::size_t i = 0; i < backends_.size(); ++i) {
+                const auto &backend = backends_[i];
+                if (backend.probe)
+                    watch(backend.probe.get(), POLLOUT, Kind::Probe, i);
+                if (!draining_)
+                    wake_at(backend.probe ? backend.probe_deadline : backend.next_probe);
+            }
             for (const auto &pair : tunnels_) {
                 auto id = pair.first;
                 const auto &t = *pair.second;
+                wake_at(t.last_activity + config_.idle_timeout_ms);
+                if (t.connecting)
+                    wake_at(t.connect_deadline);
                 short client = 0, upstream = 0;
                 if (!t.client_eof && !t.to_backend.full())
                     client |= POLLIN;
@@ -668,11 +686,14 @@ class Reactor {
                 watch(t.client.get(), client, Kind::Client, id);
                 watch(t.upstream.get(), upstream, Kind::Upstream, id);
             }
-            for (const auto &pair : admins_)
+            for (const auto &pair : admins_) {
                 watch(pair.second.socket.get(), pair.second.response.empty() ? POLLIN : POLLOUT,
                       Kind::Admin, pair.first);
+                wake_at(pair.second.deadline);
+            }
             ++stats_.poll_calls;
-            auto count = ::poll(fds.data(), fds.size(), 20);
+            // The cap also bounds a stop signal arriving just before poll starts.
+            auto count = ::poll(fds.data(), fds.size(), static_cast<int>(timeout));
             if (count < 0) {
                 if (errno == EINTR)
                     continue;
