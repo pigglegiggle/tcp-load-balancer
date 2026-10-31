@@ -2,10 +2,13 @@
 #include "lb/buffer.hpp"
 #include "lb/server.hpp"
 #include <algorithm>
+#include <arpa/inet.h>
 #include <deque>
 #include <iostream>
 #include <random>
 #include <stdexcept>
+#include <sys/socket.h>
+#include <unistd.h>
 
 namespace {
 std::size_t checks = 0;
@@ -144,6 +147,46 @@ void config_test() {
     bad.max_connections = 16384;
     bad.buffer_bytes = 4 * 1024 * 1024;
     rejects([&] { validate(bad); });
+    bad = c;
+    bad.backends = {c.listen};
+    rejects([&] { validate(bad); });
+    bad = c;
+    bad.backends = {c.admin};
+    rejects([&] { validate(bad); });
+    bad = c;
+    bad.listen = endpoint("0.0.0.0:1234");
+    bad.backends = {endpoint("127.1.2.3:1234")};
+    rejects([&] { validate(bad); });
+    bad = c;
+    bad.backends = {endpoint("0.0.0.0:1234")};
+    rejects([&] { validate(bad); });
+    auto separate = c;
+    separate.listen = endpoint("127.0.0.1:1234");
+    separate.backends = {endpoint("127.0.0.2:1234")};
+    validate(separate);
+    separate.listen = endpoint("0.0.0.0:1234");
+    separate.backends = {endpoint("192.0.2.1:1234")};
+    validate(separate);
+    int fd = ::socket(AF_INET, SOCK_STREAM, 0);
+    check(fd >= 0, "ephemeral listener socket");
+    sockaddr_in bound{};
+    bound.sin_family = AF_INET;
+    bound.sin_addr.s_addr = htonl(INADDR_LOOPBACK);
+    check(::bind(fd, reinterpret_cast<sockaddr *>(&bound), sizeof(bound)) == 0,
+          "bind ephemeral listener");
+    socklen_t size = sizeof(bound);
+    check(::getsockname(fd, reinterpret_cast<sockaddr *>(&bound), &size) == 0,
+          "resolve ephemeral listener");
+    ::close(fd);
+    auto resolved = c;
+    resolved.listen.port = resolved.admin.port = 0;
+    resolved.backends = {endpoint("127.0.0.1:" + std::to_string(ntohs(bound.sin_port)))};
+    validate(resolved);
+    resolved.listen.port = ntohs(bound.sin_port);
+    rejects([&] { validate(resolved); });
+    resolved.listen.port = 0;
+    resolved.admin.port = ntohs(bound.sin_port);
+    rejects([&] { validate(resolved); });
     bad = c;
     bad.rise = 0;
     rejects([&] { validate(bad); });

@@ -6,6 +6,7 @@
 #include <chrono>
 #include <cstring>
 #include <fcntl.h>
+#include <ifaddrs.h>
 #include <iostream>
 #include <memory>
 #include <netinet/tcp.h>
@@ -90,6 +91,27 @@ sockaddr_in address(const Endpoint &endpoint) {
     if (::inet_pton(AF_INET, endpoint.host.c_str(), &result.sin_addr) != 1)
         throw std::invalid_argument("numeric IPv4 address required");
     return result;
+}
+bool local_address(in_addr target) {
+    if ((ntohl(target.s_addr) >> 24) == 127)
+        return true;
+    ifaddrs *interfaces = nullptr;
+    if (::getifaddrs(&interfaces) < 0)
+        throw socket_error("enumerate local IPv4 interfaces");
+    std::unique_ptr<ifaddrs, decltype(&::freeifaddrs)> owned(interfaces, ::freeifaddrs);
+    for (auto *item = interfaces; item; item = item->ifa_next)
+        if (item->ifa_addr && item->ifa_addr->sa_family == AF_INET &&
+            reinterpret_cast<sockaddr_in *>(item->ifa_addr)->sin_addr.s_addr == target.s_addr)
+            return true;
+    return false;
+}
+bool targets_listener(const Endpoint &backend, const Endpoint &listener) {
+    if (!listener.port || backend.port != listener.port)
+        return false;
+    auto target = address(backend).sin_addr;
+    auto bound = address(listener).sin_addr;
+    return target.s_addr == bound.s_addr ||
+           (bound.s_addr == htonl(INADDR_ANY) && local_address(target));
 }
 std::string label(const Endpoint &e) {
     return e.host + ":" + std::to_string(e.port);
@@ -583,6 +605,8 @@ class Reactor {
         : config_(std::move(config)), pool_(config_.backends.size(), config_.policy) {
         listener_ = listener(config_.listen);
         admin_listener_ = listener(config_.admin);
+        // Recheck OS-assigned ports before probes or application routing can reach ourselves.
+        validate(config_);
         for (const auto &endpoint : config_.backends) {
             Backend b;
             b.endpoint = endpoint;
@@ -703,6 +727,11 @@ void validate(const Config &c) {
         address(b);
         if (!b.port)
             throw std::invalid_argument("backend port cannot be zero");
+        if (address(b).sin_addr.s_addr == htonl(INADDR_ANY))
+            throw std::invalid_argument("backend cannot use the unspecified IPv4 address");
+        if (targets_listener(b, c.listen) || targets_listener(b, c.admin))
+            throw std::invalid_argument("backend points to this process's public/admin listener: " +
+                                        label(b));
         auto text = label(b);
         if (std::find(endpoints.begin(), endpoints.end(), text) != endpoints.end())
             throw std::invalid_argument("duplicate backend");

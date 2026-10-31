@@ -51,7 +51,7 @@ Each response identifies the real backend that answered. In this demo both serve
   --rise 2 --fall 2
 ```
 
-Repeat `--backend` for each unique numeric IPv4 endpoint, up to 64. Listener/admin port 0 chooses an OS-assigned free port; the startup JSON prints the actual ports and PID. Backend port 0 is invalid. Scalar options repeated on the CLI use their last value.
+Repeat `--backend` for each unique numeric IPv4 endpoint, up to 64. Listener/admin port 0 chooses an OS-assigned free port; the startup JSON prints the actual ports and PID. Backend port 0 and the unspecified backend address `0.0.0.0` are invalid. Backends that point at this process's public or admin listener are rejected, including loopback/interface addresses covered by a wildcard public bind. Validation runs again after port 0 listeners receive their actual OS-assigned ports. An unrelated backend may use the same port on a different address. Scalar options repeated on the CLI use their last value.
 
 Policies: `least-connections` (default), `round-robin`. Lower active traffic-connection counts win; ties rotate by least-recent selection. Health probes are excluded from active load. Accepted streams are pinned to their assigned backend after connect success.
 
